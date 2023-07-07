@@ -1,0 +1,64 @@
+alpha = { 'A'..'Z' | 'a'..'z' }
+numeric = { '0'..'9' }
+alphanumeric = { alpha | numeric }
+WHITESPACE = _{ " " }
+
+instruction = {
+	^"adc" | ^"add" | ^"and" | ^"bit" | ^"call" |
+    ^"cp" | ^"cpd" | ^"cpdr" | ^"cpi" | ^"cpir" |
+    ^"cpl" | ^"daa" | ^"dec" | ^"di" | ^"djnz" |
+    ^"ei" | ^"ex" | ^"exx" | ^"halt" | ^"im" |
+    ^"in" | ^"inc" | ^"ind" | ^"indr" | ^"ini" |
+    ^"inr" | ^"jp" | ^"jr" | ^"ld" | ^"ldd" |
+    ^"lddr" | ^"ldi" | ^"ldir" | ^"mulub" | ^"muluw" |
+    ^"neg" | ^"nop" | ^"or" | ^"otdr" | ^"otir" |
+    ^"out" | ^"outd" | ^"outi" | ^"pop" | ^"push" |
+    ^"res" | ^"ret" | ^"reti" | ^"retn" | ^"rl" |
+    ^"rla" | ^"rlc" | ^"rlca" | ^"rld" | ^"rr" |
+    ^"rra" | ^"rrc" | ^"rrca" | ^"rrd" | ^"rst" |
+    ^"sbc" | ^"scf" | ^"set" | ^"sla" | ^"sra" |
+    ^"srl" | ^"sub" | ^"xor" }
+
+directive = {
+	^"equ" | ^"defb" | ^"defs" | ^"defw" |
+    ^"zeusemulate" | ^"org" | ^"dg" | ^"db" | ^"dh" |
+    ^"org" | ^"next" | ^"align" | ^"defm" | ^"dw" |
+    ^"endif"
+}
+
+specialDirective = {
+	(^"for" | ^"if" | ^"output_z80" | ^"output_szx" ) ~ (!("\n" | ";") ~ ANY)+ }
+
+numericLiteral = @{ numeric+ }
+hexValue = @{ (numeric | 'A'..'F' | 'a'..'f')+ }
+hexLiteral = ${ "$" ~ hexValue  }
+bitmaskLiteral = ${ ("#" | "-")+ }
+booleanLiteral = ${ "true" | "false" }
+asteriskLiteral = ${ "*" }
+
+stringLiteral = ${ "\"" ~ chars ~ "\"" }
+chars = @{ char* }
+char = { !("\"" | "\\") ~ ANY }
+
+literal = { hexLiteral | bitmaskLiteral | stringLiteral | numericLiteral | booleanLiteral | asteriskLiteral }
+
+register = {
+	'A'..'F' | "H" | "L" | "I" | "R" |
+    "IXH" | "IXL" | "IYH" | "IYL" |
+	"AF" | "BC" | "DE" | "HL" | "PC" |
+    "SP" | "IX" | "IY" }
+
+labelSubsequent = @{ (alphanumeric | "_")* }
+
+label = @{ alpha ~ labelSubsequent }
+
+expression = { "("? ~ (literal | label | register ) ~ ")"? }
+
+commentText = { (!"\n" ~ ANY)+ }
+comment = _{ ";" ~ commentText? }
+
+operation = !{ (specialDirective | directive | instruction) ~ expression? ~ ("," ~ expression)* }
+
+statement = ${ comment | (label? ~ WHITESPACE+ ~ operation? ~ comment?) }
+
+program = ${ SOI ~ NEWLINE * ~ (statement ~ NEWLINE+)* ~ statement? ~ EOI }
